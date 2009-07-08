@@ -1,0 +1,3 @@
+map <F4> :wall!<CR>:!sbcl --noinform --load subst.lisp<CR>
+map <F4> :wall!<CR>:!sbcl --noinform --load crunch.lisp<CR>:!acme asm.a<CR>
+map <F7> :!x64 player.prg<CR>
