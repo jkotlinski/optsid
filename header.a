@@ -1,0 +1,370 @@
+!to "player.prg", cbm
+!cpu 6510
+
+* = $801
+!byte $b, $08, $EF, $00, $9E, $32, $30, $36,$31, $00, $00, $00 ; basic header
+
+rline = 80
+
+mainloop
+	lda	#rline
+	cmp	$d012
+	bne	*-3
+
+	; Call player.
+	inc	$d020
+	jsr	player_entry
+	lda $d012
+	dec	$d020
+
+	; Print raster usage.
+	sec
+	sbc	#rline
+	cmp rmax
+	bcc nomax
+	sta rmax
+	ldx #<$06bc
+	ldy #>$06bc
+	jsr print
+nomax
+	ldx #<$06b9
+	ldy #>$06b9
+	jsr print
+
+	jmp	mainloop
+	
+rmax
+!byte 0
+
+reset
+	lda	#<CMDS
+	sta	cmd_reader + 1
+	lda	#>CMDS
+	sta	cmd_reader + 2
+	jmp	player_entry
+
+print     stx prlo+1
+	inx
+	stx prhi+1
+	sty prlo+2
+	sty prhi+2
+
+	pha
+	lsr
+	lsr
+	lsr
+	lsr
+	cmp #$0a
+	ora #$30
+	bcc *+4
+	sbc #$39
+prlo     sta $05b9
+	pla
+	and #$0f
+	cmp #$0a
+	ora #$30
+	bcc *+4
+	sbc #$39
+prhi     sta $05ba
+	rts
+
+; ------------
+
+player_entry
+
+cmd_reader
+	ldx	CMDS
+	beq	.frame_done
+
+	; Prepare command jump.
+	lda	CMDTABLE - 2, x
+	sta	.cmd_jmp + 1
+	lda	CMDTABLE - 1, x
+	sta	.cmd_jmp + 2
+
+	; Read argument.
+	inc	cmd_reader + 1
+	bne +
+	inc	cmd_reader + 2
+
+arg_reader
+;+	ldx	ARGS TODO
+
+	inc	arg_reader + 1
+	bne +
+	inc	arg_reader + 2
+
+.cmd_jmp
++	jmp	0	; command
+
+.frame_done
+	inc	cmd_reader + 1
+	bne +
+	inc	cmd_reader + 2
++	rts
+
+; --- adsr
+adsr_0
+	; get adsrtable entry
+	lda	ADSR_LO, x
+	sta	$d406
+	lda	ADSR_HI, x
+	sta	$d405
+	jmp	cmd_reader
+adsr_1
+	; get adsrtable entry
+	lda	ADSR_LO, x
+	sta	$d406 + 7
+	lda	ADSR_HI, x
+	sta	$d405 + 7
+	jmp	cmd_reader
+adsr_2
+	; get adsrtable entry
+	lda	ADSR_LO, x
+	sta	$d406 + 14
+	lda	ADSR_HI, x
+	sta	$d405 + 14
+	jmp	cmd_reader
+
+; ---- freq absolute
+
+PREV_FREQS
+!word 0, 0, 0
+
+; a = freqtable entry
+freq_abs_0
+	; get freqtable entry
+	lda	FREQS_LO, x
+	sta PREV_FREQS
+	sta	$d400
+	lda	FREQS_HI, x
+	sta PREV_FREQS + 1
+	sta	$d401
+	jmp	cmd_reader
+
+; a = freqtable entry
+freq_abs_1
+	; get freqtable entry
+	lda	FREQS_LO, x
+	sta PREV_FREQS + 2
+	sta	$d407
+	lda	FREQS_HI, x
+	sta PREV_FREQS + 3
+	sta	$d408
+	jmp	cmd_reader
+
+; a = freqtable entry
+freq_abs_2
+	; get freqtable entry
+	lda	FREQS_LO, x
+	sta PREV_FREQS + 4
+	sta	$d40e
+	lda	FREQS_HI, x
+	sta PREV_FREQS + 5
+	sta	$d40f
+	jmp	cmd_reader
+
+; ---- freq add
+
+freq_add_0
+	txa
+	clc
+	adc	PREV_FREQS
+	sta	PREV_FREQS
+	sta	$d400
+	bcc	+
+	inc	PREV_FREQS + 1
+	lda	PREV_FREQS + 1
+	sta	$d401
++	jmp	cmd_reader
+
+freq_add_1
+	txa
+	clc
+	adc	PREV_FREQS + 2
+	sta	PREV_FREQS + 2
+	sta	$d407
+	bcc	+
+	inc	PREV_FREQS + 3
+	lda	PREV_FREQS + 3
+	sta	$d408
++	jmp	cmd_reader
+
+freq_add_2
+	txa
+	clc
+	adc	PREV_FREQS + 4
+	sta	PREV_FREQS + 4
+	sta	$d40e
+	bcc	+
+	inc	PREV_FREQS + 5
+	lda	PREV_FREQS + 5
+	sta	$d40f
++	jmp	cmd_reader
+
+; ---- freq sub
+
+freq_sub_0
+	stx	+ + 1
+	sec
+	lda	PREV_FREQS
++	sbc #0 ; overwritten
+	sta	PREV_FREQS
+	sta	$d400
+	bcs	+
+	dec	PREV_FREQS + 1
+	lda	PREV_FREQS + 1
+	sta	$d401
++	jmp	cmd_reader
+
+freq_sub_1
+	stx	+ + 1
+	sec
+	lda	PREV_FREQS + 2
++	sbc #0 ; overwritten
+	sta	PREV_FREQS + 2
+	sta	$d407
+	bcs	+
+	dec	PREV_FREQS + 3
+	lda	PREV_FREQS + 3
+	sta	$d408
++	jmp	cmd_reader
+
+freq_sub_2
+	stx	+ + 1
+	sec
+	lda	PREV_FREQS + 4
++	sbc #0 ; overwritten
+	sta	PREV_FREQS + 4
+	sta	$d40e
+	bcs	+
+	dec	PREV_FREQS + 5
+	lda	PREV_FREQS + 5
+	sta	$d40f
++	jmp	cmd_reader
+
+pu_0
+	stx	$d403 ; Very unorthodox... Put trash in least significant nibble.
+	stx $d402
+	jmp	cmd_reader
+
+pu_1
+	stx	$d40a
+	stx	$d409
+	jmp	cmd_reader
+
+pu_2
+	stx	$d411
+	stx	$d410
+	jmp	cmd_reader
+
+; a = freqtable entry
+freq_abs_0_forget
+	; get freqtable entry
+	lda	FREQS_LO, x
+	sta	$d400
+	lda	FREQS_HI, x
+	sta	$d401
+	jmp	cmd_reader
+
+; a = freqtable entry
+freq_abs_1_forget
+	; get freqtable entry
+	lda	FREQS_LO, x
+	sta	$d407
+	lda	FREQS_HI, x
+	sta	$d408
+	jmp	cmd_reader
+
+; a = freqtable entry
+freq_abs_2_forget
+	; get freqtable entry
+	lda	FREQS_LO, x
+	sta	$d40e
+	lda	FREQS_HI, x
+	sta	$d40f
+	jmp	cmd_reader
+
+FREQ_ABS_0 = 2
+FREQ_ABS_1 = 4
+FREQ_ABS_2 = 6
+FREQ_ADD_0 = 8
+FREQ_ADD_1 = 10
+FREQ_ADD_2 = 12
+FREQ_SUB_0 = 14
+FREQ_SUB_1 = 16
+FREQ_SUB_2 = 18
+PU0 = 20
+PU1 = 22
+PU2 = 24
+ADSR0 = 26
+ADSR1 = 28
+ADSR2 = 30
+RESET = 32
+FREQ_ABS_0_FORGET = 34
+FREQ_ABS_1_FORGET = 36
+FREQ_ABS_2_FORGET = 38
+WF0 = 40
+WF1 = 42
+WF2 = 44
+FILT_RC = 46
+FILT_VOL = 48
+FILT_CUT = 50
+START_ARP_FILT_RC = 52
+START_ARP_FILT_VOL = 54
+START_ARP_FILT_CUT = 56
+START_ARP_WF0 = 58
+START_ARP_WF1 = 60
+START_ARP_WF2 = 62
+START_ARP_ADSR0 = 58
+START_ARP_ADSR1 = 60
+START_ARP_ADSR2 = 62
+START_ARP_FREQ0 = 58
+START_ARP_FREQ1 = 60
+START_ARP_FREQ2 = 62
+START_ARP_PU0 = 64
+START_ARP_PU1 = 66
+START_ARP_PU2 = 68
+START_ARP_FREQ_REL0 = 70
+START_ARP_FREQ_REL1 = 72
+START_ARP_FREQ_REL2 = 74
+END_FRAME_W_PAUSE = $80
+
+CMDTABLE
+!word freq_abs_0
+!word freq_abs_1
+!word freq_abs_2
+!word freq_add_0
+!word freq_add_1
+!word freq_add_2
+!word freq_sub_0
+!word freq_sub_1
+!word freq_sub_2
+!word pu_0
+!word pu_1
+!word pu_2
+!word adsr_0
+!word adsr_1
+!word adsr_2
+!word reset
+!word freq_abs_0_forget
+!word freq_abs_1_forget
+!word freq_abs_2_forget
+!word 0 ; wf0 - TODO
+!word 0 ; wf1 - TODO
+!word 0 ; wf2 - TODO
+!word 0 ; filt_rc - TODO
+!word 0 ; filt_vol - TODO
+!word 0 ; filt_cut - TODO
+!word 0 ; START_ARP_FILT_RC
+!word 0 ; START_ARP_FILT_VOL
+!word 0 ; START_ARP_FILT_CUT
+!word 0 ; START_ARP_F0
+!word 0 ; START_ARP_F1
+!word 0 ; START_ARP_F2
+!word 0 ; START_ARP_PU0
+!word 0 ; START_ARP_PU1
+!word 0 ; START_ARP_PU2
+
+; header end
+
