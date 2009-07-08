@@ -109,8 +109,8 @@
   (let ((pause-frames 0))
 	(loop while (and (< curr-frame-no (length frames))
 					 (null (elt frames curr-frame-no))) do
-		  (progn (incf pause-frames)
-				 (incf curr-frame-no)))
+		  (incf pause-frames)
+		  (incf curr-frame-no))
 	(assert (< pause-frames #x80))
 	(format *os* "FRAME_END | ~a" pause-frames)
 	pause-frames))
