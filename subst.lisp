@@ -34,8 +34,7 @@
 (defun prune-tail-nils (lst)
   (let ((last-not-null-item (position-if-not #'null lst :from-end t)))
 	(if last-not-null-item
-	  (subseq lst 0 (1+ last-not-null-item))
-	  nil)))
+	  (subseq lst 0 (1+ last-not-null-item)))))
 
 (defun build-arp-tree (lst)
   (let ((active-substr (make-fifo))
