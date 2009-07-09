@@ -73,7 +73,7 @@
   (setf (elt prev-freq ch)
 		(+ (elt prev-freq ch) diff))
   (let ((val 
-		  (round (if (< diff 0) 
+		  (floor (if (< diff 0) 
 			(+ 256 (/ diff 2))
 			(/ diff 2)))))
 	(assert (< val 256))
