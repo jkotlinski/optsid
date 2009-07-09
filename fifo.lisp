@@ -31,18 +31,21 @@
   (tail nil)
   (size 0))
 
-(defun nil-item>nil (item) (if (eq item 'nil-item) nil item))
-(defun nil>nil-item (item) (if (null item) 'nil-item item))
-
-(defun fifo-list (f) (mapcar #'nil-item>nil (fifo-head f)))
+(defmacro fifo-list (f) `(fifo-head ,f))
 
 (defun fifo-push (item f)
   "Append the given ITEM to the end of the fifo F"
-  (let ((tmp (list (nil>nil-item item))))
+  (let ((tmp (list item)))
     (if (= 1 (incf (fifo-size f)))
       (setf (fifo-head f) tmp)
       (setf (rest (fifo-tail f)) tmp))
     (setf (fifo-tail f) tmp)))
+
+(defun fifo-populate (f lst cnt)
+  "Move cnt items from lst to f. Return updated lst."
+  (loop while (< (fifo-size f) cnt) do
+		(fifo-push (pop lst) f))
+  lst)
 
 (defun fifo-pop (f)
   "Remove an item from the fifo."
@@ -51,9 +54,9 @@
   (let ((item (pop (fifo-head f))))
 	(unless (fifo-head f)
 	  (setf (fifo-tail f) nil))
-	(nil-item>nil item)))
+	item))
 
-(defun starts-with-null-p (fifo) (eq 'nil-item (first (fifo-head fifo))))
-(defun ends-with-null-p (fifo) (eq 'nil-item (first (fifo-tail fifo))))
+(defun starts-with-null-p (fifo) (null (first (fifo-head fifo))))
+(defun ends-with-null-p (fifo) (null (first (fifo-tail fifo))))
 (defun edge-null-p (fifo) (or (starts-with-null-p fifo) (ends-with-null-p fifo)))
 

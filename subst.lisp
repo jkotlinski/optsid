@@ -23,67 +23,32 @@
  |#
 
 (load "fifo.lisp")
+(load "arp-tree.lisp")
 
-(defconstant max-arp-len 64) ; max arpeggiato length
+(defconstant max-arp-len 255) ; max arpeggiato length
 (defconstant arp-count 256) ; maximum amount of arpeggiatos
 (defconstant min-arp-gain 1) ; minimum gain (in bytes) for switching to normal sequence to arp
 
 (defvar *arps* nil)
 
-(defun all-substrs-of-len (lst len)
-  "Return all substrings of list lst with length len
-  that don't start or end with nil. Overlapping substrings
-  are not permitted."
+(defun prune-tail-nils (lst)
+  (let ((last-not-null-item (position-if-not #'null lst :from-end t)))
+	(if last-not-null-item
+	  (subseq lst 0 (1+ last-not-null-item))
+	  nil)))
+
+(defun build-arp-tree (lst)
   (let ((active-substr (make-fifo))
-		(all-substrs (make-hash-table :test #'equal))
-		(index 0))
-	; populate fifo
-	(loop while (< (fifo-size active-substr) len) do
-		  (fifo-push (pop lst) active-substr))
+		(arp-tree (make-arp-tree)))
+	(setf lst (fifo-populate active-substr lst max-arp-len))
 
-	(loop while lst do
-		  (if (not (edge-null-p active-substr))
-			(let* ((substr (fifo-list active-substr))
-				   (indexes (gethash substr all-substrs nil)))
-			  (if (or (null indexes)
-					  (>= (- index (first indexes)) len))
-				(push index (gethash substr all-substrs)))))
-
-		  ; update active-substr...
-		  (incf index)
+	(loop while (not (null lst)) do
+		  (if (not (null (first (fifo-head active-substr))))
+			(add-list (prune-tail-nils (fifo-head active-substr)) arp-tree))
 		  (fifo-pop active-substr)
 		  (fifo-push (pop lst) active-substr))
-	all-substrs))
-
-(defun get-common-substrings-of-len (lst len)
-  "Return a list of ((ops) . (indexes)) pairs for all substrings
-  of length len that occur more than once in lst. Overlapping
-  substrings are not permitted."
-  (let ((combinations nil))
-	(maphash
-	  (lambda (substr indexes)
-		(if (> (length indexes) 1)
-		  (push (list substr indexes) combinations)))
-	  (all-substrs-of-len lst len))
-	combinations))
-
-(defun gen-range (len)
-  "Generate integer list 0..len-1"
-  (let ((lst nil))
-	(dotimes (i len)
-	  (setf lst (cons i lst)))
-	(nreverse lst)))
-
-(defun get-common-substrings (lst)
-  "Return a list of (substring . count) pairs for all substrings
-  that occur more than once in lst.  Overlapping substrings are not permitted."
-  (let ((i 2) 
-		(collection nil))
-	(loop (if (> i max-arp-len) (return collection))
-		  (let ((new-collection (get-common-substrings-of-len lst i)))
-			(setf collection (append collection new-collection)))
-		  ; (format t "~a~%" i)
-		  (incf i))))
+	(format t " ~a" (child-node-count arp-tree))
+	arp-tree))
 
 (defun filter (op-types frames)
   (let ((new-frames nil))
@@ -132,8 +97,9 @@
 
 (defun calc-substitutions (arp-types)
   (dolist (op-types arp-types)
-	(setf (gethash op-types *substitution-table*) 
-		  (get-common-substrings (filter op-types frames)))))
+	(pprint op-types)
+	(setf (gethash op-types *substitution-table*)
+		  (build-arp-tree (filter op-types frames)))))
 
 (defun freqtypep (arp-type)
   (member (car arp-type) '(freq0 freq1 freq2)))
@@ -191,10 +157,11 @@
 
 (defun generate-arps ()
   (calc-substitutions all-arp-types)
-  (dotimes (i arp-count)
-	(let ((sub (largest-substitution)))
-	  (if (null sub) (return nil)
-		(apply-substitution sub)))))
+; (dotimes (i arp-count)
+;	(let ((sub (largest-substitution)))
+;	  (if (null sub) (return nil)
+;		(apply-substitution sub))))
+)
 
 (generate-arps)
 
