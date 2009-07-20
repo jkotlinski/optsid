@@ -1,5 +1,3 @@
-(declaim optimize-speed)
-
 (defmacro while (expression &body body)
   `(tagbody
 	 start (if (not ,expression) (go end))
