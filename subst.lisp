@@ -41,12 +41,11 @@
 		(arp-tree (make-arp-tree)))
 	(setf lst (fifo-populate active-substr lst max-arp-len))
 
-	(loop while (not (null lst)) do
+	(loop while (> (fifo-size active-substr) 0) do
 		  (if (not (null (first (fifo-head active-substr))))
 			(add-list (prune-tail-nils (fifo-head active-substr)) arp-tree))
 		  (fifo-pop active-substr)
-		  (fifo-push (pop lst) active-substr))
-	(format t " ~a" (child-node-count arp-tree))
+		  (if lst (fifo-push (pop lst) active-substr)))
 	arp-tree))
 
 (defun filter (op-types frames)

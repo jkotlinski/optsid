@@ -1,4 +1,4 @@
-map <F4> :wall!<CR>:!sbcl --noinform --load crunch.lisp<CR>:!acme asm.a<CR>
+"map <F4> :wall!<CR>:!sbcl --noinform --load crunch.lisp<CR>:!acme asm.a<CR>
+"map <F4> :wall!<CR>:!sbcl --noinform --load crunch.lisp<CR>
 map <F4> :wall!<CR>:!sbcl --noinform --load arp-tree.lisp<CR>
-map <F4> :wall!<CR>:!sbcl --noinform --load crunch.lisp<CR>
 map <F7> :!x64 player.prg<CR>
